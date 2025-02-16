@@ -14,6 +14,8 @@ Public Class Form1
         InitializeComponent()
         ' Allow the form to receive key events before child controls.
         Me.KeyPreview = True
+        ' Enable double buffering to reduce flickering
+        Me.DoubleBuffered = True
         InitializeGame()
     End Sub
 
