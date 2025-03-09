@@ -1,4 +1,5 @@
 ﻿Imports System.Runtime.Versioning
+Imports System.Drawing.Drawing2D
 
 <SupportedOSPlatform("windows")>
 Public Class Form1
@@ -16,6 +17,8 @@ Public Class Form1
         Me.KeyPreview = True
         ' Enable double buffering to reduce flickering
         Me.DoubleBuffered = True
+        ' Set the form size to fit the backdrop
+        Me.ClientSize = New Size(800, 400)
         InitializeGame()
     End Sub
 
@@ -74,6 +77,26 @@ Public Class Form1
     Protected Overrides Sub OnPaint(e As PaintEventArgs)
         MyBase.OnPaint(e)
 
+        ' Draw the sky
+        e.Graphics.Clear(Color.LightBlue)
+
+        ' Draw the mountains
+        Dim mountainPath As New GraphicsPath()
+        mountainPath.AddLines(New PointF() {
+            New PointF(0, 300),
+            New PointF(100, 200),
+            New PointF(200, 300),
+            New PointF(300, 150),
+            New PointF(400, 300),
+            New PointF(500, 200),
+            New PointF(600, 300),
+            New PointF(700, 150),
+            New PointF(800, 300),
+            New PointF(800, 400),
+            New PointF(0, 400)
+        })
+        e.Graphics.FillPath(Brushes.Tan, mountainPath)
+
         ' Draw missiles
         For Each missile In missiles
             missile.Draw(e.Graphics)
@@ -85,7 +108,10 @@ Public Class Form1
         Next
 
         ' Draw player
-        e.Graphics.FillRectangle(Brushes.Black, playerX, 400, 20, 20)
+        ' Ensure the player icon is drawn within the visible area and is not obscured
+        e.Graphics.FillRectangle(Brushes.Black, playerX, 380, 20, 20) ' Adjusted Y coordinate to 380
+
+        ' Draw score
         e.Graphics.DrawString("Score: " & score, New Font("Arial", 16), Brushes.Black, 10, 10)
     End Sub
 
@@ -114,3 +140,5 @@ Public Class Form1
         End If
     End Sub
 End Class
+
+
