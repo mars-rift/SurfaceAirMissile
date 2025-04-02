@@ -11,7 +11,7 @@ Public Class Form1
     Private WithEvents gameTimer As Timer
     Private score As Integer
     Private playerX As Integer
-    Private Const targetScore As Integer = 20
+    Private Const targetScore As Integer = 100
     Private difficultyLevel As Integer
     Private previousScore As Integer
 
@@ -294,7 +294,7 @@ Public Class Form1
         g.Clear(Color.DarkRed)
         g.DrawString("SURFACE TO AIR MISSILE GAME", New Font("Arial", 24, FontStyle.Bold), Brushes.Black, WindowWidth / 2 - 250, 100)
         g.DrawString("Press Enter to Start", New Font("Arial", 18), Brushes.Black, WindowWidth / 2 - 100, 200)
-        g.DrawString("Arrow Keys to Move, Space to Fire", New Font("Arial", 14), Brushes.Black, WindowWidth / 2 - 150, 250)
+        g.DrawString("Arrow Keys to Move, Space,X,Z to Fire", New Font("Arial", 14), Brushes.Black, WindowWidth / 2 - 150, 250)
     End Sub
 
     Private Sub DrawGameplay(g As Graphics)
