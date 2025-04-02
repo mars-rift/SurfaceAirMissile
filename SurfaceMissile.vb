@@ -1,5 +1,6 @@
 ﻿Imports System.Drawing.Drawing2D
 Imports System.Runtime.Versioning
+Imports SurfaceAirMissile
 
 <SupportedOSPlatform("windows")>
 Public Class SurfaceMissile
@@ -10,6 +11,7 @@ Public Class SurfaceMissile
     Public Property Angle As Single  ' In degrees
     Public Property Gravity As Single
     Public Property IsLaunched As Boolean
+    Public Property MissileType As SurfaceAirMissile.MissileType
 
     ' Previous position to calculate direction vector
     Private prevX As Single
@@ -32,14 +34,31 @@ Public Class SurfaceMissile
     Private ReadOnly rocketBrush As New SolidBrush(Color.Red)
     Private ReadOnly rocketPath As New GraphicsPath()
 
-    Public Sub New(startX As Integer, startY As Integer, startAngle As Single)
+    ' Target tracking for guided missiles
+    Private targetJet As Jet = Nothing
+
+    ' Fixed constructor that includes all possible parameters
+    Public Sub New(startX As Integer, startY As Integer, startAngle As Single, Optional missileType As SurfaceAirMissile.MissileType = SurfaceAirMissile.MissileType.Standard)
         X = startX
         Y = startY
         prevX = startX
         prevY = startY
-        Speed = 15.0F
+        Me.MissileType = missileType
+
+        ' Set speed based on missile type
+        Select Case missileType
+            Case SurfaceAirMissile.MissileType.Fast
+                Speed = 25.0F
+                Gravity = 0.3F
+            Case SurfaceAirMissile.MissileType.Guided
+                Speed = 12.0F
+                Gravity = 0.2F
+            Case Else ' Standard
+                Speed = 15.0F
+                Gravity = 0.5F
+        End Select
+
         Angle = startAngle
-        Gravity = 0.5F
         IsLaunched = False
 
         ' Initialize the missile shape just once
@@ -52,8 +71,15 @@ Public Class SurfaceMissile
         })
     End Sub
 
+    ' Simpler constructor that calls the main one
     Public Sub New(startX As Integer, startAngle As Single)
-        Me.New(startX, 400, startAngle)
+        Me.New(startX, 400, startAngle, SurfaceAirMissile.MissileType.Standard)
+    End Sub
+
+    ' Constructor for missile with target (guided)
+    Public Sub New(startX As Integer, startY As Integer, startAngle As Single, target As Jet)
+        Me.New(startX, startY, startAngle, SurfaceAirMissile.MissileType.Guided)
+        targetJet = target
     End Sub
 
     Public Sub Launch()
@@ -69,15 +95,20 @@ Public Class SurfaceMissile
         prevX = X
         prevY = Y
 
-        ' Convert angle (degrees) to radians - use a faster calculation method
-        Dim angleRad As Double = Angle * 0.017453292519943295 ' This is Math.PI/180 precalculated
+        ' Handle guided missiles differently
+        If MissileType = SurfaceAirMissile.MissileType.Guided AndAlso targetJet IsNot Nothing Then
+            UpdateGuidedMissile()
+        Else
+            ' Convert angle (degrees) to radians - use a faster calculation method
+            Dim angleRad As Double = Angle * 0.017453292519943295 ' This is Math.PI/180 precalculated
 
-        ' Update X/Y using standard projectile physics
-        X += CSng(Speed * Math.Cos(angleRad))
-        Y -= CSng(Speed * Math.Sin(angleRad))
+            ' Update X/Y using standard projectile physics
+            X += CSng(Speed * Math.Cos(angleRad))
+            Y -= CSng(Speed * Math.Sin(angleRad))
 
-        ' Gravity effect
-        Y += Gravity
+            ' Gravity effect
+            Y += Gravity
+        End If
 
         ' Add current position to trail
         trailPoints.Add(New PointF(X, Y))
@@ -102,6 +133,46 @@ Public Class SurfaceMissile
         cachedPoints = trailPoints.ToArray()
     End Sub
 
+    Private Sub UpdateGuidedMissile()
+        ' Calculate direction to target
+        Dim dx As Single = targetJet.X - X
+        Dim dy As Single = targetJet.Y - Y
+
+        ' Calculate angle to target
+        Dim targetAngle As Single = CSng(Math.Atan2(-dy, dx) * 57.2957795131) ' 180/pi precalculated
+
+        ' Gradually adjust angle toward target (homing effect)
+        Dim angleAdjustment As Single = 2.0F ' How quickly the missile can turn
+
+        ' Find the shortest path to turn to the target angle
+        Dim angleDiff As Single = targetAngle - Angle
+
+        ' Normalize the angle difference to -180 to 180
+        While angleDiff > 180
+            angleDiff -= 360
+        End While
+
+        While angleDiff < -180
+            angleDiff += 360
+        End While
+
+        ' Apply adjustment (limited by turn rate)
+        If Math.Abs(angleDiff) < angleAdjustment Then
+            Angle = targetAngle
+        ElseIf angleDiff > 0 Then
+            Angle += angleAdjustment
+        Else
+            Angle -= angleAdjustment
+        End If
+
+        ' Convert angle to radians
+        Dim angleRad As Double = Angle * 0.017453292519943295
+
+        ' Update position
+        X += CSng(Speed * Math.Cos(angleRad))
+        Y -= CSng(Speed * Math.Sin(angleRad))
+    End Sub
+
     Public Sub Draw(g As Graphics)
         If Not IsLaunched Then
             Return
@@ -111,6 +182,16 @@ Public Class SurfaceMissile
 
         ' Draw trail using cached points
         If trailPoints.Count > 1 Then
+            ' Set trail color based on missile type
+            Select Case MissileType
+                Case SurfaceAirMissile.MissileType.Fast
+                    trailPen.Color = Color.Orange
+                Case SurfaceAirMissile.MissileType.Guided
+                    trailPen.Color = Color.LightBlue
+                Case Else
+                    trailPen.Color = Color.Gray
+            End Select
+
             g.DrawLines(trailPen, cachedPoints)
         End If
 
@@ -121,10 +202,27 @@ Public Class SurfaceMissile
         ' Use the cached movement angle
         g.RotateTransform(cachedMoveAngle - 90) ' -90 because our triangle points up by default
 
+        ' Set missile color based on type
+        Select Case MissileType
+            Case SurfaceAirMissile.MissileType.Fast
+                rocketBrush.Color = Color.Orange
+            Case SurfaceAirMissile.MissileType.Guided
+                rocketBrush.Color = Color.Blue
+            Case Else
+                rocketBrush.Color = Color.Red
+        End Select
+
         ' Draw using the pre-defined path
         g.FillPath(rocketBrush, rocketPath)
         g.Restore(state)
     End Sub
+
+    ' Helper for collision detection - exposed Width property
+    Public ReadOnly Property Width As Integer
+        Get
+            Return MissileRadius * 2
+        End Get
+    End Property
 
     ' Rectangle-based collision (still good for simpler checks)
     Public ReadOnly Property Bounds As Rectangle
